@@ -1,0 +1,23 @@
+
+🖹 OCR (texto detectado)
+<div class="row justify-content-center">86<div classes="col-12 mt-2">80<table class="table table-
+striped text-light text-center" border="1">88<tr><th class="text-light">TITulos/th>90<t th
+class="Text-Light">Autor</th>91(th class-"text-Light" Precio/th)95<t class="TEXT-Light
+"Cantidad/th"94<t><t>96<t>// MUESTRA CANTIDAD DE LIBROS97for (int i = 0; i < cesta.size); i++)
+{98PedidoTienda elementPedido = cesta
+
+🌐 OCR traducido al español
+<div class = "fila justify-confontent-center"> 86 <div classes = "col-12 mt-2"> 80 <table class =
+"tabla de tabla de texto-light-center" border = "1"> 88 <tr> <th class = "text-light"> titulos/th>
+90 <th class = "text-light"> Autor </th> 91 (th class- "text-light" THH) class = "Text-Light"
+CantiDad/th "94 <t> <t> 96 <t> // Maestra Cantidad de Libros97for (int i = 0; i <cesta.size); i ++)
+{98pedidot y elementDoDo = cesta
+
+🧠 Detección de lenguaje
+Predicción: **xml**  |  Confianza aprox.: 71%
+Top candidatos:
+  - xml: 10
+  - html: 2
+  - java: 1
+  - csharp: 1
+  - python: 0
