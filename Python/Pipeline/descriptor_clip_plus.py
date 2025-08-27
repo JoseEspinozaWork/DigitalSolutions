@@ -438,6 +438,107 @@ def describe_image(path: str, enable_clip: bool = True, enable_treesitter: bool 
     )
 
 # ---------------------------
+# Salidas human‑friendly (pretty / markdown)
+# ---------------------------
+
+def _top_keywords(scores: Dict[str, float], n: int = 3) -> List[Tuple[str,float]]:
+    if not scores:
+        return []
+    return sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[:n]
+
+
+def render_pretty(result: Dict[str, Any]) -> str:
+    # result es un dict convertido desde Description (asdict)
+    t = result.get('type')
+    details = result.get('details', {})
+    lines = []
+    if t == 'code':
+        lang = details.get('language') or 'desconocido'
+        app = (details.get('app') or {}).get('name') if details.get('app') else None
+        lines.append(f"➡️  Se detecta **código** en **{lang}**.")
+        if app:
+            lines.append(f"➡️  Aplicación probable: **{app}**.")
+        # Evidencias
+        votes = details.get('votes', {})
+        if isinstance(votes, dict):
+            scores = votes.get('scores', {})
+            if scores:
+                top3 = _top_keywords(scores, 3)
+                pretty_scores = ", ".join([f"{k}: {round(v,2)}" for k,v in top3])
+                lines.append(f"🔍 Evidencia (top): {pretty_scores}")
+            ts = votes.get('details', {}).get('tree_sitter') if isinstance(votes.get('details'), dict) else None
+            if ts:
+                top_ts = _top_keywords(ts, 3)
+                if top_ts:
+                    pretty_ts = ", ".join([f"{k}: {round(v,2)}" for k,v in top_ts])
+                    lines.append(f"🌲 Tree‑sitter: {pretty_ts}")
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            lines.append(f"🅾️  Densidad OCR: {dens:.2f} palabras/MPix")
+        # Comentarios y recomendaciones
+        lines.append("💬 Comentario: Si el lenguaje no coincide con lo esperado, activa --enable-treesitter y --enable-clip para mejorar la precisión, y asegúrate de usar EasyOCR con --prefer-easyocr.")
+    elif t == 'application':
+        app = (details.get('app') or {}).get('name') if details.get('app') else 'desconocida'
+        score = (details.get('app') or {}).get('score') if details.get('app') else None
+        lines.append(f"➡️  Se detecta **aplicación**: **{app}**" + (f" (score {round(score,2)})" if score is not None else "") + ".")
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            lines.append(f"🅾️  Densidad OCR: {dens:.2f} palabras/MPix")
+        lines.append("💬 Comentario: Para identificar el lenguaje de código, asegúrate de que haya texto legible en la captura (OCR) y habilita el ensamble de lenguaje.")
+    else:
+        lines.append("➡️  No se pudo clasificar con alta confianza.")
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            lines.append(f"🅾️  Densidad OCR: {dens:.2f} palabras/MPix")
+        lines.append("💬 Comentario: Aumenta el tamaño de fuente de la captura, evita fondos borrosos y activa --prefer-easyocr para mejorar el OCR.")
+    return "".join(lines)
+
+
+def render_markdown(result: Dict[str, Any]) -> str:
+    # Parecido a pretty, pero con encabezados
+    t = result.get('type')
+    details = result.get('details', {})
+    out = ["# Resultado de DescriptorImagenes"]
+    if t == 'code':
+        lang = details.get('language') or 'desconocido'
+        app = (details.get('app') or {}).get('name') if details.get('app') else None
+        out.append(f"- **Tipo**: Código")
+        out.append(f"- **Lenguaje**: **{lang}**")
+        if app:
+            out.append(f"- **Aplicación**: **{app}**")
+        votes = details.get('votes', {})
+        if isinstance(votes, dict):
+            scores = votes.get('scores', {})
+            if scores:
+                top3 = _top_keywords(scores, 3)
+                out.append("- **Evidencia (top)**: " + ", ".join([f"{k}: {round(v,2)}" for k,v in top3]))
+            ts = votes.get('details', {}).get('tree_sitter') if isinstance(votes.get('details'), dict) else None
+            if ts:
+                top_ts = _top_keywords(ts, 3)
+                if top_ts:
+                    out.append("- **Tree‑sitter**: " + ", ".join([f"{k}: {round(v,2)}" for k,v in top_ts]))
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            out.append(f"- **Densidad OCR**: {dens:.2f} palabras/MPix")
+        out.append("**Comentario**: Si el lenguaje no coincide con lo esperado, activa `--enable-treesitter` y `--enable-clip`, y usa `--prefer-easyocr`.")
+    elif t == 'application':
+        app = (details.get('app') or {}).get('name') if details.get('app') else 'desconocida'
+        score = (details.get('app') or {}).get('score') if details.get('app') else None
+        out.append(f"- **Tipo**: Aplicación")
+        out.append(f"- **Aplicación**: **{app}**" + (f" (score {round(score,2)})" if score is not None else ""))
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            out.append(f"- **Densidad OCR**: {dens:.2f} palabras/MPix")
+        out.append("**Comentario**: Para detectar el lenguaje, habilita OCR y el ensamble de lenguaje.")
+    else:
+        out.append(f"- **Tipo**: Indefinido")
+        dens = details.get('ocr_text_density')
+        if dens is not None:
+            out.append(f"- **Densidad OCR**: {dens:.2f} palabras/MPix")
+        out.append("**Comentario**: Sube una captura con más texto y activa `--prefer-easyocr`.")
+    return "".join(out)
+
+# ---------------------------
 # CLI
 # ---------------------------
 
@@ -456,7 +557,8 @@ def main():
     p.add_argument('--enable-clip', action='store_true', help='Usar CLIP para detectar aplicación')
     p.add_argument('--enable-treesitter', action='store_true', help='Usar Tree‑sitter para puntuar lenguajes')
     p.add_argument('--prefer-easyocr', action='store_true', help='Usar EasyOCR antes que Tesseract')
-    p.add_argument('--save-json', type=str, help='Guardar resultados en JSON')
+    p.add_argument('--format', choices=['json','pretty','markdown'], default='json', help='Formato de salida legible')
+    p.add_argument('--save-json', type=str, help='Guardar resultados crudos en JSON')
     args = p.parse_args()
 
     results = []
@@ -467,13 +569,25 @@ def main():
             if fname.lower().endswith(('.png','.jpg','.jpeg','.bmp','.webp')):
                 results.append(run_on_path(os.path.join(args.folder, fname), args))
 
+    # Persistencia cruda si se solicita
     if args.save_json:
         with open(args.save_json, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         print(f"Resultados guardados en: {args.save_json}")
-    else:
-        print(json.dumps(results if len(results)>1 else results[0], ensure_ascii=False, indent=2))
 
+    # Render humano
+    if args.format == 'json' or len(results) > 1:
+        # Si hay varias imágenes, siempre imprimimos JSON para evitar confusiones,
+        # pero mostramos un resumen legible por cada entrada
+        if args.format in ('pretty','markdown'):
+            for r in results:
+                txt = render_pretty(r) if args.format=='pretty' else render_markdown(r)
+                print("" + ("-"*60) + "" + txt)
+        print(json.dumps(results if len(results)>1 else results[0], ensure_ascii=False, indent=2))
+    else:
+        r = results[0]
+        txt = render_pretty(r) if args.format=='pretty' else render_markdown(r)
+        print(txt)
 
 if __name__ == '__main__':
     main()
