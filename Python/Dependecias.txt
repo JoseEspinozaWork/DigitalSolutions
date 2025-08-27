@@ -1,5 +1,0 @@
-LIBRERIAS:
-py  -m pip install deep-translator
-py  -m pip install --upgrade pip
-py  -m pip install pillow "transformers>=4.41" torch --index-url https://download.pytorch.org/whl/cpu
-pip install einops timm
